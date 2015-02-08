@@ -7467,7 +7467,6 @@ function Pattern(id, options) {
   this.scale = this.options.scale;
   this.offY = -1;
   this.counter = 0;
-  this.lastHigh = 0;
 
   this.canvas = document.getElementById(id);
   this.canvas.width = this.width * this.scale;
@@ -7488,13 +7487,11 @@ Pattern.prototype.init = function init(cb) {
   });
 };
 
-Pattern.prototype.color = function color() {
-  var sat = (this.counter - this.lastHigh) % 16;
-  var pi2 = 2 * Math.PI;
-  var hue = this.counter % pi2;
-  hue /= pi2;
+Pattern.prototype.color = function color(density) {
+  var hue = ((3 * density + this.counter) % this.width) / this.width;
+  var sat = 1;
   hue *= 360;
-  sat *= 100/16;
+  sat *= 100;
 
   return 'hsla(' + hue + ',' + sat + '%,40%,1)';
 };
@@ -7505,10 +7502,13 @@ Pattern.prototype.draw = function draw(line) {
   var bits = [];
 
   // NOTE: bytes is in Big Endian
+  var density = 0;
   for (var i = bytes.length - 1; i >= 0; i--) {
     var b = bytes[i];
     for (var j = 0; j < 8; j++) {
       bits.push(b & 1);
+      if (b & 1)
+        density++;
       b >>= 1;
     }
   }
@@ -7523,7 +7523,7 @@ Pattern.prototype.draw = function draw(line) {
   var y = this.nextY();
 
   // bits are in reverse now
-  this.ctx.fillStyle = this.color();
+  this.ctx.fillStyle = this.color(density);
   for (var i = bits.length; i >= 0; i--) {
     var bit = bits[i];
     var x = this.width - i - 1;
@@ -7554,9 +7554,9 @@ Pattern.prototype.nextY = function nextY() {
 };
 
 var p = new Pattern('banner', {
-  width: 64,
-  height: (window.innerHeight / 4) | 0,
-  scale: 4
+  width: 1024,
+  height: (window.innerHeight / 1) | 0,
+  scale: 1
 });
 
 // Polyfill
@@ -7571,9 +7571,11 @@ p.init(function(err) {
   if (err)
     throw err;
 
+  for (var i = 0; i < p.width; i++)
+    p.draw();
+
   function step() {
-    for (var i = 0; i < 1; i++)
-      p.draw();
+    p.draw();
 
     requestFrame(step);
   }
